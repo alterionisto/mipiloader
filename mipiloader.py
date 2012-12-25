@@ -77,8 +77,9 @@ while True:
 		break
 	print("copying", os.path.basename(current))
 	shutil.copy(current, destination)
-	copied += 1	
+	copied += 1
 	file_list.remove(current)
 	if not file_list:
 		print("copied everything")
 		break
+print("{} files copied".format(copied))
