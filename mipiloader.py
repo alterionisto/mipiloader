@@ -72,6 +72,9 @@ while True:
 	if args.reserve and (dev_free - os.path.getsize(current)) < args.reserve:
 		print("reached reserve limit")
 		break
+	if dev_free < os.path.getsize(current):
+		print("device is full")
+		break
 	print("copying", os.path.basename(current))
 	shutil.copy(current, destination)
 	copied += 1	
