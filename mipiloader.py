@@ -1,62 +1,81 @@
 import shutil
 import os, sys
+import platform
 import string
 import time
+import random
+import ctypes
+import pprint
+from argparse import ArgumentParser
 
-def validate(answer):
-	if answer not in ["yes", "no"]:
-		raise Exception("Invalid input")
-
-drive = ""
-marked = False
-make_mark = False
-source = False
-"""
-for letter in string.ascii_lowercase:
-	if os.path.isfile(os.path.join(letter + ":\\", "mark.mark")):
-		drive = letter
-		marked = True
-		break 
-
-choise = "no"
-if (drive != ""):
-	choise = raw_input("Found mark.mark on %s. Use it? (yes, no): " % drive)
-validate(choise)
-if choise == "no":
-	disk = raw_input("Destination disk: ")
-drive = drive + ":\\"
-purge = raw_input("Purge before copying? (yes, no): ")
-validate(purge)
-if marked == False:
-	make_mark = raw_input("Create mark.mark file in root? (yes, no): ")
+def get_free_space(folder):
+	""" Return folder/drive free space (in bytes)
 	"""
-#source = input("Source folder: ")
-source = r"F:\music"
-print("Lift off")
-ret = 0
-copied = 0
-current = 0
+	if platform.system() == 'Windows':
+		free_bytes = ctypes.c_ulonglong(0)
+		ctypes.windll.kernel32.GetDiskFreeSpaceExW(ctypes.c_wchar_p(folder), 
+			None, None, ctypes.pointer(free_bytes))
+		return free_bytes.value
+	else:
+		return os.statvfs(folder).f_bfree
+
+def size_format(num):
+    for x in ['bytes','KiB','MiB','GiB']:
+        if num < 1024.0 and num > -1024.0:
+            return "%3.1f%s" % (num, x)
+        num /= 1024.0
+    return "%3.1f%s" % (num, 'TiB')
+
+parser = ArgumentParser(description="Media device random filler")
+parser.add_argument("-p", "--purge", action="store_true", dest="purge",
+	help="purge the destination directory")
+parser.add_argument("-r", "--reserve", dest="reserve", type=int,
+	help="reserve x KiB of free space on device")
+parser.add_argument("-e", "--extensions", dest="extensions", nargs="*",
+	default="mp3 flac aac wav".split(),
+	help="acceptable file extensions, default is mp3, flac, aac, wav")
+parser.add_argument("source")
+parser.add_argument("destination")
+args = parser.parse_args()
+pprint.pprint(args.__dict__)
+source = args.source #.encode(sys.getfilesystemencoding())
+destination = args.destination #.encode(sys.getfilesystemencoding())
+if not os.path.isdir(source):
+	raise SystemExit("source is not a directory")
+if not os.path.isdir(args.destination):
+	print("creating destination folder")
+	os.makedirs(args.destination)
+if args.reserve and int(args.reserve) <= 0:
+	raise SystemExit("reserve value is invalid")
+
+dev_free = get_free_space(destination)
+print("free space:", size_format(dev_free))
+if args.reserve and dev_free < args.reserve:
+	print("impossible to reserve given amount")
+
+if args.purge:
+	print("cleaning ", destination)
+	for (p, d, files) in os.walk(destination)
+		for f in files:
+			os.remove(os.path.join(p, f))
 file_list = []
-print("Gathering files")
-for (path, dirs, files) in os.walk(source.encode(sys.getfilesystemencoding())):
-	for file in files:
-		file_list.append(file)
-print(file_list[:10])
-for x in file_list[-5:]:
-	print(type(x))
-	print(x)
-	print(str(x))
-	#print(x.decode(sys.getfilesystemencoding()))
+[file_list.append(os.path.join(path, f))
+	for (path, dirs, files) in os.walk(source)
+	for f in files
+	if os.path.splitext(f)[1][1:] in args.extensions]
+print("{} files found".format(len(file_list)))
 
-exit()
-"""
-while ret == 0:
-	print "\r Copied: %i, current: %s" % (copied, I),
-
-	ret = os.system("copy file %s" )
-	if not ret:
-		copied += 1
-print "Finished copying"
-if make_mark:
-	print "Creating mark.mark file"
-	pass """
+current = ret = copied = 0
+while True:
+	current = random.choice(file_list)
+	dev_free = get_free_space(destination)
+	if args.reserve and (dev_free - os.path.getsize(current)) < args.reserve:
+		print("reached reserve limit")
+		break
+	print("copying", os.path.basename(current))
+	shutil.copy(current, destination)
+	copied += 1	
+	file_list.remove(current)
+	if not file_list:
+		print("copied everything")
+		break
