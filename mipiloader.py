@@ -55,7 +55,7 @@ if args.reserve and dev_free < args.reserve:
 
 if args.purge:
 	print("cleaning ", destination)
-	for (p, d, files) in os.walk(destination)
+	for (p, d, files) in os.walk(destination):
 		for f in files:
 			os.remove(os.path.join(p, f))
 file_list = []
@@ -64,7 +64,7 @@ file_list = []
 	for f in files
 	if os.path.splitext(f)[1][1:] in args.extensions]
 print("{} files found".format(len(file_list)))
-
+#filenotfounderror continue
 current = ret = copied = 0
 while True:
 	current = random.choice(file_list)
@@ -75,10 +75,14 @@ while True:
 	if dev_free < os.path.getsize(current):
 		print("device is full")
 		break
-	print("copying", os.path.basename(current))
-	shutil.copy(current, destination)
-	copied += 1
-	file_list.remove(current)
+	try:
+		print("copying", os.path.basename(current))
+		shutil.copy(current, destination)
+		copied += 1
+	except UnicodeEncodeError:
+		print("unicode error")
+	finally:
+		file_list.remove(current)
 	if not file_list:
 		print("copied everything")
 		break
